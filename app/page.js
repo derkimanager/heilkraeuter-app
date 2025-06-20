@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { SparklesIcon, StarIcon, HomeIcon, GlobeAltIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 
 export default function Home() {
   const [suche, setSuche] = useState("");
@@ -25,12 +26,12 @@ export default function Home() {
   const [seite, setSeite] = useState(1);
   const EINTRAEGE_PRO_SEITE = 5;
   const TAG_ICONS = {
-    "Kraut": "🌿",
-    "Fest": "🎉",
-    "Lieblingspflanze": "⭐",
-    "Giftpflanze": "☠️",
-    "Heimisch": "🏡",
-    "Exotisch": "🌍"
+    "Kraut": <SparklesIcon className="w-5 h-5 text-green-700" />,
+    "Fest": <SparklesIcon className="w-5 h-5 text-yellow-600" />,
+    "Lieblingspflanze": <StarIcon className="w-5 h-5 text-yellow-500" />,
+    "Giftpflanze": <ExclamationTriangleIcon className="w-5 h-5 text-red-500" />,
+    "Heimisch": <HomeIcon className="w-5 h-5 text-green-500" />,
+    "Exotisch": <GlobeAltIcon className="w-5 h-5 text-blue-500" />
   };
 
   // Lade gespeicherte Einträge aus localStorage beim Start
@@ -212,8 +213,7 @@ export default function Home() {
 
       {/* Gespeicherte Einträge */}
       {gespeichert.length > 0 && (
-        <div className="mt-12 w-full max-w-md">
-          <h3 className="text-lg font-bold mb-4 text-green-800">Meine Sammlung</h3>
+        <div className="mt-12 w-full max-w-3xl grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="flex flex-wrap gap-2 mb-4">
             {TAG_LISTE.map(tag => (
               <button
@@ -290,24 +290,29 @@ export default function Home() {
                 // Index für Akkordeon und EditBuffer anpassen:
                 const globalIdx = gespeichert.indexOf(eintrag);
                 return (
-                  <div key={globalIdx} className="mb-6 p-4 bg-white rounded shadow">
+                  <div key={globalIdx} className="card-mood" style={{ background: 'rgba(191, 200, 184, 0.5)', backgroundColor: 'rgba(191, 200, 184, 0.5)', opacity: 1, zIndex: 10 }}>
                     <div className="flex justify-between items-center mb-1 cursor-pointer" onClick={() => setOffen(o => ({...o, [globalIdx]: !o[globalIdx]}))}>
-                      <span className="font-semibold text-green-700 flex items-center gap-2">
+                      <span className="card-mood-title flex items-center gap-2">
                         {/* Icon für das erste Tag */}
                         {eintrag.tags && eintrag.tags.length > 0 && (
-                          <span className="text-lg">{TAG_ICONS[eintrag.tags[0]] || "🌱"}</span>
+                          <span className="text-lg">{TAG_ICONS[eintrag.tags[0]] || <SparklesIcon className="w-5 h-5 text-green-700" />}</span>
                         )}
                         {eintrag.titel}
-                        <span className="text-xs">{offen[globalIdx] ? "▲" : "▼"}</span>
+                        <span className="text-xs ml-2">{offen[globalIdx] ? "▲" : "▼"}</span>
                       </span>
-                      <div className="flex flex-wrap gap-1">
+                      <div className="card-mood-tags">
                         {eintrag.tags && eintrag.tags.map((tag, i) => (
-                          <span key={i} className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">{tag}</span>
+                          <span key={i} className="card-mood-tag">{tag}</span>
                         ))}
                       </div>
                     </div>
                     {offen[globalIdx] && (
                       <div className="mt-2">
+                        <div className="card-mood-desc mb-2">{eintrag.beschreibung}</div>
+                        <div className="p-2 rounded mb-2" style={{ background: 'var(--color-matte-green)', color: 'var(--color-olive-night)' }}>
+                          <strong>Instagram-Text:</strong><br/>
+                          {eintrag.insta}
+                        </div>
                         <textarea
                           className="w-full p-1 border border-green-100 rounded text-sm mb-1"
                           value={editBuffer[globalIdx]?.beschreibung || ""}
@@ -337,14 +342,14 @@ export default function Home() {
                           <div className="text-green-600 text-xs mt-1">Gespeichert!</div>
                         )}
                         <button onClick={() => handleLoeschen(globalIdx)} className="text-red-500 text-xs ml-2 mt-2">Löschen</button>
-                        <div className="text-gray-400 text-xs mt-1">Gespeichert am: {eintrag.zeit}</div>
+                        <div className="card-mood-footer">Gespeichert am: {eintrag.zeit}</div>
                       </div>
                     )}
                   </div>
                 );
               })}
               {/* Pagination Buttons */}
-              <div className="flex justify-center gap-2 mt-4">
+              <div className="flex justify-center gap-2 mt-4 col-span-full">
                 <button
                   onClick={() => setSeite(s => Math.max(1, s - 1))}
                   disabled={seite === 1}

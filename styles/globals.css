@@ -8,6 +8,11 @@
   --color-border: #c8e6c9;
   --color-text: #2e3d27;
   --color-shadow: 0 2px 8px 0 rgba(56, 142, 60, 0.08);
+  --color-blush: #c9b1a7;         /* PANTONE 16-1317 TCX */
+  --color-almond: #e5d8c3;        /* PANTONE 13-1016 TCX */
+  --color-cream: #f6f2e6;         /* PANTONE 11-4302 TCX */
+  --color-matte-green: #bfc8b8;   /* PANTONE 17-0112 TCX */
+  --color-olive-night: #5b5c3b;   /* PANTONE 19-0515 TCX */
 }
 
 body {
@@ -66,5 +71,52 @@ input, textarea, select {
 ::-webkit-scrollbar-thumb {
   background: #c8e6c9;
   border-radius: 4px;
-}      npm install
+}
+
+.card-mood {
+  background: red !important; /* Testweise auffällige Farbe */
+  background-color: red !important;
+  background-image: none !important;
+  border-radius: 1.5rem;
+  box-shadow: 0 8px 32px 0 rgba(89, 90, 59, 0.16);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  border: 1.5px solid var(--color-olive-night);
+  transition: box-shadow 0.2s;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  opacity: 1 !important;
+  z-index: 10;
+}
+.card-mood-title {
+  font-family: 'Georgia', 'Times New Roman', serif;
+  color: var(--color-olive-night);
+  font-size: 1.2rem;
+  margin-bottom: 0.3rem;
+}
+.card-mood-desc {
+  color: var(--color-matte-green);
+  font-size: 1rem;
+}
+.card-mood-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.card-mood-tag {
+  background: var(--color-blush);
+  color: var(--color-olive-night);
+  border-radius: 1rem;
+  padding: 0.2rem 0.8rem;
+  font-size: 0.85rem;
+  font-family: inherit;
+}
+.card-mood-footer {
+  color: var(--color-almond);
+  font-size: 0.8rem;
+  margin-top: 0.7rem;
+}
+
+npm install
 npm run dev
