@@ -1,12 +1,15 @@
 "use client";
 import { useState, useEffect } from "react";
-import { SparklesIcon, StarIcon, HomeIcon, GlobeAltIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { SparklesIcon, StarIcon, HomeIcon, GlobeAltIcon, ExclamationTriangleIcon, PlayCircleIcon } from '@heroicons/react/24/outline';
 
 export default function Home() {
   const [suche, setSuche] = useState("");
   const [ergebnis, setErgebnis] = useState(null);
-  const [lade, setLade] = useState(false);
+  const [isLaden, setIsLaden] = useState(false);
   const [notiz, setNotiz] = useState("");
+  const [instagramPost, setInstagramPost] = useState("");
+  const [instagramStory, setInstagramStory] = useState("");
+  const [fachtext, setFachtext] = useState("");
   const TAG_LISTE = [
     "Kraut",
     "Fest",
@@ -16,9 +19,10 @@ export default function Home() {
     "Exotisch"
   ];
   const [tags, setTags] = useState([]);
-  const [gespeichert, setGespeichert] = useState([]);
+  const [gespeicherteEintraege, setGespeicherteEintraege] = useState([]);
   const [editBuffer, setEditBuffer] = useState({});
   const [editSuccess, setEditSuccess] = useState({});
+  const [showSaveSuccess, setShowSaveSuccess] = useState(false);
   const [sammlungSuche, setSammlungSuche] = useState("");
   const [sortierung, setSortierung] = useState("az"); // az, neu, alt
   const [tagFilter, setTagFilter] = useState([]);
@@ -33,62 +37,177 @@ export default function Home() {
     "Heimisch": <HomeIcon className="w-5 h-5 text-green-500" />,
     "Exotisch": <GlobeAltIcon className="w-5 h-5 text-blue-500" />
   };
+  const [showAccordion, setShowAccordion] = useState({});
+  const [filter, setFilter] = useState('');
+  const [sortOrder, setSortOrder] = useState('asc'); // 'asc' oder 'desc'
 
-  // Lade gespeicherte Einträge aus localStorage beim Start
+  // States für die 4 API-Felder
+  const [apiPflanze, setApiPflanze] = useState("");
+
   useEffect(() => {
     const daten = localStorage.getItem("heilkraeuter_sammlung");
-    if (daten) setGespeichert(JSON.parse(daten));
+    if (daten) {
+      let geladeneEintraege = JSON.parse(daten);
+      
+      // Migration für alte und neue Daten, um eine konsistente Struktur sicherzustellen
+      const korrigierteEintraege = geladeneEintraege.map(e => {
+        if (!e || typeof e !== 'object') return null;
+
+        let migrated = { ...e };
+
+        // 1. Migration: `titel` zu `name`
+        if (!migrated.name && migrated.titel) {
+          const extrahierterName = migrated.titel.match(/"(.*?)"/);
+          migrated.name = extrahierterName ? extrahierterName[1] : migrated.titel;
+        }
+
+        // 2. Migration: Alte Felder (`beschreibung`, `insta`) auf neue Struktur mappen
+        if (migrated.beschreibung && !migrated.fachtext) {
+          migrated.fachtext = migrated.beschreibung;
+        }
+        if (migrated.insta && !migrated.instagramPost) {
+          migrated.instagramPost = migrated.insta;
+        }
+        
+        // 3. Sicherstellen, dass alle neuen Felder existieren, um Fehler zu vermeiden
+        if (typeof migrated.instagramStory === 'undefined') {
+          migrated.instagramStory = "";
+        }
+        if (typeof migrated.fachtext === 'undefined') {
+          migrated.fachtext = "";
+        }
+        if (typeof migrated.instagramPost === 'undefined') {
+          migrated.instagramPost = "";
+        }
+
+        // 4. Alte, redundante Felder entfernen für saubere Daten
+        delete migrated.beschreibung;
+        delete migrated.insta;
+        delete migrated.anwendung;
+        delete migrated.titel;
+        delete migrated.zeit;
+        
+        return migrated;
+
+      }).filter(e => e && e.name); // Nur gültige Einträge mit einem Namen behalten
+
+      setGespeicherteEintraege(korrigierteEintraege);
+    }
   }, []);
 
   // Speichern in localStorage, wenn sich die Sammlung ändert
   useEffect(() => {
-    localStorage.setItem("heilkraeuter_sammlung", JSON.stringify(gespeichert));
-  }, [gespeichert]);
+    localStorage.setItem("heilkraeuter_sammlung", JSON.stringify(gespeicherteEintraege));
+  }, [gespeicherteEintraege]);
 
   // Editierbare Felder initialisieren, wenn Sammlung sich ändert
   useEffect(() => {
     const buffer = {};
-    gespeichert.forEach((eintrag, idx) => {
+    gespeicherteEintraege.forEach((eintrag, idx) => {
       buffer[idx] = {
-        beschreibung: eintrag.beschreibung,
-        insta: eintrag.insta,
-        notiz: eintrag.notiz
+        // Neue, saubere Struktur für den Editier-Buffer
+        instagramPost: eintrag.instagramPost || "",
+        instagramStory: eintrag.instagramStory || "",
+        fachtext: eintrag.fachtext || "",
+        notiz: eintrag.notiz || ""
       };
     });
     setEditBuffer(buffer);
-  }, [gespeichert]);
+  }, [gespeicherteEintraege]);
 
-  // Simulierte API-Anfrage (Demo)
   const handleSuche = async (e) => {
     e.preventDefault();
-    setLade(true);
+    if (!suche.trim()) return;
+    setIsLaden(true);
     setErgebnis(null);
+    
+    // States für neue Suche zurücksetzen
+    setApiPflanze("");
+    setInstagramPost("");
+    setInstagramStory("");
+    setFachtext("");
     setNotiz("");
-    await new Promise((resolve) => setTimeout(resolve, 1200));
-    setErgebnis({
-      titel: suche || "Lavendel",
-      beschreibung: `"${suche || "Lavendel"}" ist eine Heilpflanze, die beruhigend wirkt und oft bei Schlafproblemen eingesetzt wird. (Demo-Text)` ,
-      insta: `🌿 ${suche || "Lavendel"} – für mehr Ruhe & Entspannung! #${(suche || "Lavendel").replace(/ /g, "")} #Heilkräuter #Naturkraft`
-    });
-    setLade(false);
+    setTags([]);
+
+    try {
+      const response = await fetch("https://p3kbzlnlf6qvl81g.myfritz.net:8443/webhook/lookup", {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ pflanze: suche }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const text = await response.text();
+      if (text) {
+        try {
+          const data = JSON.parse(text);
+          // Die vier Felder aus der API-Antwort auslesen
+          setApiPflanze(data["pflanze"] || `Ergebnis für "${suche}"`);
+          setInstagramPost(data["Instagram-Post:"] || "Kein Instagram-Post gefunden.");
+          setInstagramStory(data["Instagram-Story-Text"] || "Kein Story-Text gefunden.");
+          setFachtext(data["Fachtext für Wissensdatenbank"] || "Kein Fachtext gefunden.");
+          setErgebnis(data); // Ergebnis für Speichern-Funktion behalten
+        } catch (jsonError) {
+          console.error("Fehler beim Parsen von JSON:", jsonError);
+          setErgebnis({
+            name: "Antwort erhalten (kein JSON)",
+            beschreibung: text,
+            anwendung: "",
+            insta: ""
+          });
+        }
+      } else {
+        setErgebnis({
+          name: "Leere Antwort",
+          beschreibung: "Der Server hat eine leere Antwort gesendet.",
+          anwendung: "",
+          insta: ""
+        });
+      }
+
+    } catch (error) {
+      console.error("Fehler bei der API-Anfrage:", error);
+      // Optional: Benutzerfeedback für Fehler
+      setErgebnis({
+        name: "Fehler",
+        beschreibung: "Die Suche konnte nicht durchgeführt werden. Bitte versuchen Sie es später erneut.",
+        anwendung: "",
+        insta: ""
+      });
+    } finally {
+      setIsLaden(false);
+    }
   };
 
   // Speichern-Funktion
   const handleSpeichern = () => {
     if (!ergebnis) return;
-    setGespeichert([
-      ...gespeichert,
-      {
-        ...ergebnis,
-        notiz: notiz,
-        tags: tags,
-        zeit: new Date().toLocaleString(),
-        timestamp: Date.now()
-      }
+    
+    // Ein neues, sauberes Objekt mit der neuen Struktur für die Speicherung erstellen
+    const neuerEintrag = {
+      name: apiPflanze,
+      instagramPost: instagramPost,
+      instagramStory: instagramStory,
+      fachtext: fachtext,
+      notiz: notiz,
+      tags: tags,
+      timestamp: new Date().toISOString() // Zeitstempel für die Sortierung
+    };
+
+    setGespeicherteEintraege([
+      ...gespeicherteEintraege,
+      neuerEintrag,
     ]);
-    setErgebnis(null);
-    setNotiz("");
-    setTags([]);
+
+    setShowSaveSuccess(true);
+    setTimeout(() => {
+      setShowSaveSuccess(false);
+    }, 3000);
   };
 
   // Notiz aktualisieren
@@ -96,30 +215,30 @@ export default function Home() {
 
   // Notiz bei gespeichertem Eintrag ändern
   const handleGespeicherteNotiz = (idx, neueNotiz) => {
-    const kopie = [...gespeichert];
+    const kopie = [...gespeicherteEintraege];
     kopie[idx].notiz = neueNotiz;
-    setGespeichert(kopie);
+    setGespeicherteEintraege(kopie);
   };
 
-  // Beschreibung bei gespeichertem Eintrag ändern
+  // Notiz bei gespeichertem Eintrag ändern
   const handleGespeicherteBeschreibung = (idx, neueBeschreibung) => {
-    const kopie = [...gespeichert];
+    const kopie = [...gespeicherteEintraege];
     kopie[idx].beschreibung = neueBeschreibung;
-    setGespeichert(kopie);
+    setGespeicherteEintraege(kopie);
   };
 
   // Instagram-Text bei gespeichertem Eintrag ändern
   const handleGespeicherteInsta = (idx, neuerInsta) => {
-    const kopie = [...gespeichert];
+    const kopie = [...gespeicherteEintraege];
     kopie[idx].insta = neuerInsta;
-    setGespeichert(kopie);
+    setGespeicherteEintraege(kopie);
   };
 
   // Eintrag löschen
   const handleLoeschen = (idx) => {
-    const kopie = [...gespeichert];
+    const kopie = [...gespeicherteEintraege];
     kopie.splice(idx, 1);
-    setGespeichert(kopie);
+    setGespeicherteEintraege(kopie);
   };
 
   // Änderungen im Editier-Buffer speichern
@@ -135,12 +254,12 @@ export default function Home() {
 
   // Änderungen übernehmen
   const handleEditSpeichern = (idx) => {
-    const kopie = [...gespeichert];
+    const kopie = [...gespeicherteEintraege];
     kopie[idx] = {
       ...kopie[idx],
       ...editBuffer[idx]
     };
-    setGespeichert(kopie);
+    setGespeicherteEintraege(kopie);
     setEditSuccess((prev) => ({ ...prev, [idx]: true }));
     setTimeout(() => {
       setEditSuccess((prev) => ({ ...prev, [idx]: false }));
@@ -154,65 +273,154 @@ export default function Home() {
         background: `linear-gradient(rgba(255,255,255,0.85), rgba(255,255,255,0.85)), url('/background.jpg') center center / cover no-repeat fixed`,
       }}
     >
-      <h1 className="text-3xl font-bold mb-6 text-green-900">HEILKRÄUTER & RITUALE</h1>
-      <form onSubmit={handleSuche} className="flex flex-col items-center gap-4 w-full max-w-md">
-        <input
-          type="text"
-          placeholder="Suche nach Pflanze oder Fest..."
-          value={suche}
-          onChange={(e) => setSuche(e.target.value)}
-          className="w-full p-2 border border-green-300 rounded"
-        />
-        <button
-          type="submit"
-          className="text-white px-4 py-2 rounded transition"
-          style={{ backgroundColor: '#009975' }}
-          disabled={lade}
-        >
-          {lade ? "Suche läuft..." : "Suchen"}
-        </button>
-      </form>
+      <div className="relative z-10 flex flex-col items-center text-center mt-8 text-white">
+        <div className="flex flex-col items-center justify-center">
+          <img src="/ladeicon.svg" alt="Logo" className="h-40 w-40 md:h-48 md:w-48 mb-4" />
+          <h1 className="text-4xl md:text-6xl font-bold tracking-tight" style={{ color: '#2E403B' }}>
+            HEILKRÄUTER & RITUALE
+          </h1>
+        </div>
 
-      {/* Ergebnis anzeigen */}
-      {ergebnis && (
-        <div className="mt-8 p-4 bg-white rounded shadow w-full max-w-md text-center">
-          <h2 className="text-xl font-semibold mb-2 text-green-800">{ergebnis.titel}</h2>
-          <p className="mb-2">{ergebnis.beschreibung}</p>
-          <div className="p-2 rounded mb-2" style={{ background: '#d8e3dc', color: '#3a5a40' }}>
-            <strong>Instagram-Text:</strong><br/>
-            {ergebnis.insta}
-          </div>
-          <textarea
-            className="w-full p-2 border border-green-200 rounded mb-2"
-            placeholder="Eigene Notiz hinzufügen..."
-            value={notiz}
-            onChange={handleNotizChange}
-            rows={2}
-          />
-          <div className="flex flex-wrap gap-2 mb-2 justify-center">
-            {TAG_LISTE.map((tag) => (
-              <label key={tag} className="flex items-center gap-1 text-xs bg-green-100 text-green-700 px-2 py-1 rounded cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={tags.includes(tag)}
-                  onChange={() => setTags(tags.includes(tag) ? tags.filter(t => t !== tag) : [...tags, tag])}
+        <div className="w-full max-w-lg mt-8">
+          <form onSubmit={handleSuche} className="flex flex-col items-center gap-4">
+            <input
+              type="text"
+              value={suche}
+              onChange={(e) => setSuche(e.target.value)}
+              placeholder="Suche nach Pflanze oder Fest..."
+              className="w-full p-2 border border-green-300 rounded text-gray-900"
+            />
+            <div className="flex items-center gap-4">
+              <button
+                type="submit"
+                className="text-white px-4 py-2 rounded transition"
+                style={{ backgroundColor: '#009975' }}
+                disabled={isLaden}
+              >
+                Suchen
+              </button>
+              {isLaden && (
+                <img
+                  src="/lade-spinner-icon.svg"
+                  alt="Lädt..."
+                  className="lade-spinner"
+                  style={{ display: 'inline-block' }}
                 />
-                {tag}
-              </label>
-            ))}
+              )}
+            </div>
+          </form>
+        </div>
+      </div>
+
+      {showSaveSuccess && (
+        <div className="mt-4 p-3 bg-green-100 border border-green-300 text-green-800 font-semibold rounded-lg shadow-md text-center">
+          ✓ Erfolgreich in deiner Sammlung gespeichert!
+        </div>
+      )}
+
+      {/* --- EINHEITLICHER ERGEBNIS-CONTAINER --- */}
+      {apiPflanze && !isLaden && (
+        <div className="w-full max-w-2xl mt-8 p-6 bg-white rounded-lg shadow-lg text-gray-800 text-left">
+          <h2 className="text-2xl font-bold mb-4 text-gray-900">{apiPflanze}</h2>
+          
+          <div className="mb-6">
+            <h3 className="text-xl font-semibold mb-2 text-green-700">Instagram-Post</h3>
+            <p className="whitespace-pre-wrap">{instagramPost}</p>
           </div>
-          <button
-            onClick={handleSpeichern}
-            className="text-white px-3 py-1 rounded transition"
-            style={{ backgroundColor: '#009975' }}
-          >
-            Speichern
-          </button>
+
+          <div className="mb-6">
+            <h3 className="text-xl font-semibold mb-2 text-green-700">Instagram-Story</h3>
+            <p className="whitespace-pre-wrap">{instagramStory}</p>
+          </div>
+
+          <div className="mb-6">
+            <h3 className="text-xl font-semibold mb-2 text-green-700">Fachtext für Wissensdatenbank</h3>
+            <p className="whitespace-pre-wrap">{fachtext}</p>
+          </div>
+
+          <hr className="my-6 border-gray-300" />
+
+          {/* Notizen und Speichern-Funktionalität */}
+          <div className="mt-4">
+             <textarea
+              value={notiz}
+              onChange={handleNotizChange}
+              placeholder="Eigene Notizen hinzufügen..."
+              className="w-full p-2 border border-gray-300 rounded mb-4"
+            />
+            <div className="flex flex-wrap gap-2 mb-4">
+              {TAG_LISTE.map((tag) => (
+                <button
+                  key={tag}
+                  onClick={() => {
+                    setTags((prev) =>
+                      prev.includes(tag)
+                        ? prev.filter((t) => t !== tag)
+                        : [...prev, tag]
+                    );
+                  }}
+                  className={`px-3 py-1 rounded-full text-sm transition ${
+                    tags.includes(tag)
+                      ? "bg-green-700 text-white"
+                      : "bg-gray-200 text-gray-800"
+                  }`}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={handleSpeichern}
+              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition"
+            >
+              In Sammlung speichern
+            </button>
+            {showSaveSuccess && (
+              <p className="text-green-600 mt-2">Erfolgreich gespeichert!</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {ergebnis && !isLaden && (
+        <div className="w-full max-w-2xl mt-8 p-4 bg-white rounded-lg shadow-lg text-gray-800 text-left">
+          <h2 className="text-xl font-bold mb-2 text-gray-900">{ergebnis.name}</h2>
+          <p className="mb-2">{ergebnis.beschreibung}</p>
+          <p className="mb-4"><strong>Anwendungen:</strong> {ergebnis.anwendung}</p>
+
+          <div className="flex items-center justify-between">
+            {gespeicherteEintraege.some(e => e.name?.toLowerCase() === ergebnis.name?.toLowerCase()) ? (
+                <span className="font-bold text-green-800">Bereits in deiner Sammlung!</span>
+            ) : (
+                <button
+                    onClick={handleSpeichern}
+                    className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition"
+                >
+                    In Sammlung speichern
+                </button>
+            )}
+
+            <div className="flex gap-2">
+              <a href={`https://instagram.com/explore/tags/${(ergebnis.name || "").replace(/ /g, "")}`} target="_blank" rel="noopener noreferrer" className="text-pink-600 hover:text-pink-700">
+                <PlayCircleIcon className="h-6 w-6" />
+              </a>
+            </div>
+          </div>
+          <div className="mt-4">
+            <h4 className="font-bold">Notiz zum Eintrag:</h4>
+            <input
+              type="text"
+              value={notiz}
+              onChange={(e) => setNotiz(e.target.value)}
+              placeholder="Deine persönliche Notiz..."
+              className="w-full p-2 border border-gray-300 rounded mt-1 text-gray-900"
+            />
+          </div>
         </div>
       )}
 
       {/* Gespeicherte Einträge */}
-      {gespeichert.length > 0 && (
+      {gespeicherteEintraege.length > 0 && (
         <div className="mt-12 w-full max-w-3xl grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="flex flex-wrap gap-2 mb-4">
             {TAG_LISTE.map(tag => (
@@ -253,24 +461,27 @@ export default function Home() {
           </div>
           {(() => {
             // Gefilterte und sortierte Einträge berechnen
-            const gefiltert = gespeichert
+            const gefiltert = gespeicherteEintraege
               .filter(eintrag => {
                 // Tag-Filter
-                if (tagFilter.length > 0 && !(eintrag.tags || []).some(tag => tagFilter.includes(tag))) {
-                  return false;
+                if (filter && eintrag && eintrag.tags && eintrag.tags.includes(filter)) {
+                  return true;
                 }
-                const such = sammlungSuche.toLowerCase();
-                return (
-                  eintrag.titel.toLowerCase().includes(such) ||
-                  eintrag.beschreibung.toLowerCase().includes(such) ||
-                  eintrag.insta.toLowerCase().includes(such) ||
-                  (eintrag.notiz || "").toLowerCase().includes(such) ||
-                  (eintrag.tags || []).some(tag => tag.toLowerCase().includes(such))
-                );
+                // Suchtext-Filter
+                if (filter && eintrag && eintrag.name && eintrag.name.toLowerCase().includes(filter.toLowerCase())) {
+                  return true;
+                }
+                if (filter && eintrag && eintrag.beschreibung && eintrag.beschreibung.toLowerCase().includes(filter.toLowerCase())) {
+                  return true;
+                }
+                // Wenn kein Filter gesetzt ist, alles anzeigen
+                return !filter;
               })
               .sort((a, b) => {
+                const nameA = a.name || '';
+                const nameB = b.name || '';
                 if (sortierung === "az") {
-                  return a.titel.localeCompare(b.titel);
+                  return nameA.localeCompare(nameB);
                 } else if (sortierung === "neu") {
                   return (b.timestamp || 0) - (a.timestamp || 0);
                 } else if (sortierung === "alt") {
@@ -288,7 +499,7 @@ export default function Home() {
             return <>
               {aktuell.map((eintrag, idx) => {
                 // Index für Akkordeon und EditBuffer anpassen:
-                const globalIdx = gespeichert.indexOf(eintrag);
+                const globalIdx = gespeicherteEintraege.indexOf(eintrag);
                 return (
                   <div key={globalIdx} className="card-mood" style={{ background: 'rgba(191, 200, 184, 0.5)', backgroundColor: 'rgba(191, 200, 184, 0.5)', opacity: 1, zIndex: 10 }}>
                     <div className="flex justify-between items-center mb-1 cursor-pointer" onClick={() => setOffen(o => ({...o, [globalIdx]: !o[globalIdx]}))}>
@@ -297,7 +508,7 @@ export default function Home() {
                         {eintrag.tags && eintrag.tags.length > 0 && (
                           <span className="text-lg">{TAG_ICONS[eintrag.tags[0]] || <SparklesIcon className="w-5 h-5 text-green-700" />}</span>
                         )}
-                        {eintrag.titel}
+                        {eintrag.name}
                         <span className="text-xs ml-2">{offen[globalIdx] ? "▲" : "▼"}</span>
                       </span>
                       <div className="card-mood-tags">
@@ -307,42 +518,67 @@ export default function Home() {
                       </div>
                     </div>
                     {offen[globalIdx] && (
-                      <div className="mt-2">
-                        <div className="card-mood-desc mb-2">{eintrag.beschreibung}</div>
-                        <div className="p-2 rounded mb-2" style={{ background: 'var(--color-matte-green)', color: 'var(--color-olive-night)' }}>
-                          <strong>Instagram-Text:</strong><br/>
-                          {eintrag.insta}
+                      <div className="mt-4 text-left">
+                        {/* Überarbeiteter Bearbeitungsbereich mit allen Feldern */}
+                        <div className="space-y-4">
+                          <div>
+                            <label className="font-bold text-sm text-green-800">Instagram-Post</label>
+                            <textarea
+                              className="w-full p-2 border border-green-200 bg-white rounded text-sm mt-1"
+                              value={editBuffer[globalIdx]?.instagramPost || ""}
+                              onChange={e => handleEditBufferChange(globalIdx, "instagramPost", e.target.value)}
+                              rows={5}
+                            />
+                          </div>
+                          <div>
+                            <label className="font-bold text-sm text-green-800">Instagram-Story</label>
+                            <textarea
+                              className="w-full p-2 border border-green-200 bg-white rounded text-sm mt-1"
+                              value={editBuffer[globalIdx]?.instagramStory || ""}
+                              onChange={e => handleEditBufferChange(globalIdx, "instagramStory", e.target.value)}
+                              rows={5}
+                            />
+                          </div>
+                          <div>
+                            <label className="font-bold text-sm text-green-800">Fachtext</label>
+                            <textarea
+                              className="w-full p-2 border border-green-200 bg-white rounded text-sm mt-1"
+                              value={editBuffer[globalIdx]?.fachtext || ""}
+                              onChange={e => handleEditBufferChange(globalIdx, "fachtext", e.target.value)}
+                              rows={7}
+                            />
+                          </div>
+                          <div>
+                            <label className="font-bold text-sm text-green-800">Eigene Notizen</label>
+                            <textarea
+                              className="w-full p-2 border border-gray-300 bg-white rounded text-sm mt-1"
+                              value={editBuffer[globalIdx]?.notiz || ""}
+                              onChange={e => handleEditBufferChange(globalIdx, "notiz", e.target.value)}
+                              rows={3}
+                            />
+                          </div>
                         </div>
-                        <textarea
-                          className="w-full p-1 border border-green-100 rounded text-sm mb-1"
-                          value={editBuffer[globalIdx]?.beschreibung || ""}
-                          onChange={e => handleEditBufferChange(globalIdx, "beschreibung", e.target.value)}
-                          rows={2}
-                        />
-                        <textarea
-                          className="w-full p-1 border border-purple-200 rounded text-xs mb-2"
-                          value={editBuffer[globalIdx]?.insta || ""}
-                          onChange={e => handleEditBufferChange(globalIdx, "insta", e.target.value)}
-                          rows={2}
-                        />
-                        <textarea
-                          className="w-full p-1 border border-green-100 rounded text-xs"
-                          value={editBuffer[globalIdx]?.notiz || ""}
-                          onChange={e => handleEditBufferChange(globalIdx, "notiz", e.target.value)}
-                          rows={2}
-                        />
-                        <button
-                          onClick={() => handleEditSpeichern(globalIdx)}
-                          className="text-white px-3 py-1 rounded transition mt-2 text-sm"
-                          style={{ backgroundColor: '#009975' }}
-                        >
-                          Speichern
-                        </button>
-                        {editSuccess[globalIdx] && (
-                          <div className="text-green-600 text-xs mt-1">Gespeichert!</div>
-                        )}
-                        <button onClick={() => handleLoeschen(globalIdx)} className="text-red-500 text-xs ml-2 mt-2">Löschen</button>
-                        <div className="card-mood-footer">Gespeichert am: {eintrag.zeit}</div>
+                        
+                        <div className="flex items-center justify-between mt-4">
+                          <div>
+                            <button
+                              onClick={() => handleEditSpeichern(globalIdx)}
+                              className="text-white px-4 py-2 rounded transition text-sm"
+                              style={{ backgroundColor: '#009975' }}
+                            >
+                              Änderungen speichern
+                            </button>
+                            {editSuccess[globalIdx] && (
+                              <span className="text-green-600 text-sm ml-2">Gespeichert!</span>
+                            )}
+                          </div>
+                          <button onClick={() => handleLoeschen(globalIdx)} className="text-red-500 hover:text-red-700 text-xs font-semibold">
+                            Eintrag löschen
+                          </button>
+                        </div>
+                        <div className="text-xs text-gray-500 mt-2">
+                          {eintrag.timestamp ? `Gespeichert am: ${new Date(eintrag.timestamp).toLocaleString('de-DE')}` : ''}
+                        </div>
                       </div>
                     )}
                   </div>

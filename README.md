@@ -1,36 +1,77 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Heilkräuter-App
 
-## Getting Started
+Dies ist eine mit [Next.js](https://nextjs.org) erstellte Webanwendung zur Darstellung und Verwaltung von Heilkräutern.
 
-First, run the development server:
+## Inhaltsverzeichnis
 
+- [Projektüberblick](#projektüberblick)
+- [Voraussetzungen](#voraussetzungen)
+- [Installation](#installation)
+- [Entwicklung starten](#entwicklung-starten)
+- [Projektstruktur](#projektstruktur)
+- [Anpassung](#anpassung)
+- [Deployment](#deployment)
+- [Weiterführende Links](#weiterführende-links)
+
+---
+
+## Projektüberblick
+
+Die Heilkräuter-App ist eine moderne Webanwendung, die mit Next.js entwickelt wurde. Sie dient als Basis für eine Informationsplattform rund um Heilkräuter. Das Projekt kann beliebig erweitert und angepasst werden.
+
+## Voraussetzungen
+
+- Node.js (empfohlen: Version 18 oder höher)
+- npm (wird mit Node.js installiert)
+
+## Installation
+
+1. Repository klonen oder herunterladen.
+2. Im Projektverzeichnis die Abhängigkeiten installieren:
+   ```bash
+   npm install
+   ```
+
+## Entwicklung starten
+
+Starte den lokalen Entwicklungsserver mit:
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
+Öffne dann [http://localhost:3000](http://localhost:3000) in deinem Browser, um die App zu sehen.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Projektstruktur
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+- `app/` – Hauptverzeichnis für Seiten, Layouts und globale Einstellungen
+  - `page.js` – Startseite der Anwendung
+  - `layout.js` – Layout-Komponente für die gesamte App
+  - `globals.css` – Globale CSS-Styles
+- `public/` – Statische Dateien wie Bilder und Icons
+- `styles/` – Weitere CSS-Dateien
+- `package.json` – Projekt- und Abhängigkeitsverwaltung
+- `next.config.mjs` – Next.js Konfiguration
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Anpassung
 
-## Learn More
+- Seiten können in `app/page.js` bearbeitet werden.
+- Globale Styles in `app/globals.css` oder `styles/globals.css`.
+- Eigene Bilder und Icons im `public/`-Ordner ablegen.
 
-To learn more about Next.js, take a look at the following resources:
+## Deployment
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Die einfachste Möglichkeit zur Veröffentlichung ist [Vercel](https://vercel.com/). Alternativ kann die App auf jedem Node.js-fähigen Server deployed werden:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. Produktionsbuild erstellen:
+   ```bash
+   npm run build
+   ```
+2. App starten:
+   ```bash
+   npm start
+   ```
 
-## Deploy on Vercel
+## Weiterführende Links
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [Next.js Dokumentation](https://nextjs.org/docs)
+- [Next.js Tutorial](https://nextjs.org/learn)
+- [Vercel Deployment](https://vercel.com/new)

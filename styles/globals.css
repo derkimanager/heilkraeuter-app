@@ -118,5 +118,25 @@ input, textarea, select {
   margin-top: 0.7rem;
 }
 
+.lade-spinner {
+  display: none;
+  width: 2rem;
+  height: 2rem;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.laden .lade-spinner {
+  display: inline-block;
+}
+
 npm install
 npm run dev
