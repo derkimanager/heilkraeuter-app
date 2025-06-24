@@ -119,7 +119,6 @@ input, textarea, select {
 }
 
 .lade-spinner {
-  display: none;
   width: 2rem;
   height: 2rem;
   animation: spin 1s linear infinite;
@@ -137,6 +136,3 @@ input, textarea, select {
 .laden .lade-spinner {
   display: inline-block;
 }
-
-npm install
-npm run dev

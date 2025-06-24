@@ -293,7 +293,7 @@ export default function Home() {
             <div className="flex items-center gap-4">
               <button
                 type="submit"
-                className="text-white px-4 py-2 rounded transition"
+                className={`text-white px-4 py-2 rounded transition${isLaden ? ' laden' : ''}`}
                 style={{ backgroundColor: '#009975' }}
                 disabled={isLaden}
               >
@@ -301,7 +301,7 @@ export default function Home() {
               </button>
               {isLaden && (
                 <img
-                  src="/lade-spinner-icon.svg"
+                  src="/Icon1.png"
                   alt="Lädt..."
                   className="lade-spinner"
                   style={{ display: 'inline-block' }}
